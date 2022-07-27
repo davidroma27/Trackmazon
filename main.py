@@ -19,8 +19,30 @@ def cmd_start(message):
     bot.send_message(message.chat.id, "👋 Bienvenido a Trackmazon! 👋 \n Para empezar elige una opción del menú 👇",
                      reply_markup=markup)
 
+@bot.callback_query_handler(func=lambda x: True)
+def respuesta_botones(call): # Gestiona las acciones del menu de botones
+    chat_id = call.from_user.id
+    message_id = call.message.id
+    if call.data == "stock":
+        bot.send_message(chat_id, "Mensaje de rastreo de stock")
+    if call.data == "precio":
+        bot.send_message(chat_id, "Mensaje de rastreo de precio")
+    if call.data == "delete":
+        bot.send_message(chat_id, "Lista de los productos en rastreo")
+    if call.data == "help":
+        msg_help = f'🆘 <b>Ayuda</b> 🆘 \n\n' \
+                   f'<b>🔶 ¿Qué es Trackmazon?</b> \n' \
+                   f'   🔹 Trackmazon es un asistente que te ayuda a encontrar las mejores ofertas de productos de Amazon, ' \
+                   f'avisándote cuando un producto vuelva a tener stock o haya bajado su precio. \n\n' \
+                   f'<b>🔶 ¿Como funciona Trackmazon?</b> \n' \
+                   f'🔹 Puedes escoger entre 2 opciones: \n     <b>1.</b> Rastrear un producto que no está en stock. Trackmazon te avisará' \
+                   f' cuando ese producto vuelva a estar disponible.\n     <b>2.</b> Rastrear el precio de un producto. Trackmazon te avisará' \
+                   f' cuando el precio de un producto esté por debajo del precio que has indicado.\n\n' \
+                   f'<b>🔶 ¿Qué hago si quiero dejar de rastrear un producto?</b> \n' \
+                   f'🔹 En el menú principal (cuando escribes el comando /start) existe una opción "Eliminar rastreo" que' \
+                   f' listará todos los productos que están siendo rastreados y podrás elegir uno para dejar de rastrearlo. \n'
 
-
+        bot.send_message(chat_id, msg_help, parse_mode="html")
 
 # Responde a los mensajes de texto que no son comandos
 @bot.message_handler(content_types=["text"])
