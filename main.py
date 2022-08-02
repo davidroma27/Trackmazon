@@ -2,6 +2,7 @@ from config import *  # se importa el token e IDs
 import telebot  # Para importar la API de Telegram
 from telebot.types import InlineKeyboardMarkup # Para crear menu de botones
 from telebot.types import InlineKeyboardButton # Para definir botones inline
+import re # Para evaluar expresiones regulares
 
 # instacia del bot
 bot = telebot.TeleBot(TLG_TOKEN)  # Le pasamos el token del bot a instanciar
@@ -24,7 +25,7 @@ def respuesta_botones(call): # Gestiona las acciones del menu de botones
     chat_id = call.from_user.id
     message_id = call.message.id
     if call.data == "stock":
-        bot.send_message(chat_id, "Mensaje de rastreo de stock")
+        bot.send_message(chat_id, "Introduce la URL del producto que deseas rastrear: ")
     if call.data == "precio":
         bot.send_message(chat_id, "Mensaje de rastreo de precio")
     if call.data == "delete":
@@ -44,12 +45,30 @@ def respuesta_botones(call): # Gestiona las acciones del menu de botones
 
         bot.send_message(chat_id, msg_help, parse_mode="html")
 
+# Responde a los mensajes que contienen una URL de Amazon
+# Empleamos una regexp que indentifica URLs de Amazon
+# https://regex101.com/r/UaxDyp/1
+# ^([https?://www\.]*amazon\.(com|es|co\.uk|de|fr|it|nl)).*?(\/[dg]p\/[^/]+).*
+@bot.message_handler(regexp=AMZ_REGEXP)
+# Gestiona los mensajes con enlaces de amazon
+def handle_url(message):
+    match = re.compile(AMZ_REGEXP)
+    if not match.search(message.text):
+        bot.reply_to(message, "La url introducida no es correcta")
+    else:
+        bot.reply_to(message, "La url introducida es correcta")
+
+@bot.message_handler(commands=["stock", "precio"]) # Responde a los comandos /stock y /precio
+def cmd_reply(message):
+    bot.send_message(message.chat.id, "Introduce la URL del producto que deseas rastrear: ")
+
 # Responde a los mensajes de texto que no son comandos
 @bot.message_handler(content_types=["text"])
 # Gestiona mensajes de texto
 def text_messages(message):
     if message.text.startswith("/"):
         bot.send_message(message.chat.id, "Comando no disponible")
+
 
 
 
