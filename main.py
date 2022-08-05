@@ -1,4 +1,5 @@
 from config import *  # se importa el token e IDs
+from amz import AmzScraper
 import telebot  # Para importar la API de Telegram
 from telebot.types import InlineKeyboardMarkup # Para crear menu de botones
 from telebot.types import InlineKeyboardButton # Para definir botones inline
@@ -52,13 +53,13 @@ def respuesta_botones(call): # Gestiona las acciones del menu de botones
 @bot.message_handler(regexp=AMZ_REGEXP)
 # Gestiona los mensajes con enlaces de amazon
 def handle_url(message):
-    match = re.compile(AMZ_REGEXP)
-    if not match.search(message.text):
-        bot.reply_to(message, "La url introducida no es correcta")
-    else:
-        bot.reply_to(message, "La url introducida es correcta")
+    bot.reply_to(message, "La url introducida es correcta")
+    amz = AmzScraper(message.text) # Instanciamos la clase
+    output = amz.getProductPrize() # Pasamos la url al metodo
+    bot.send_message(message.chat.id, output)
 
-@bot.message_handler(commands=["stock", "precio"]) # Responde a los comandos /stock y /precio
+# Responde a los comandos /stock y /precio
+@bot.message_handler(commands=["stock", "precio"])
 def cmd_reply(message):
     bot.send_message(message.chat.id, "Introduce la URL del producto que deseas rastrear: ")
 
