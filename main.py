@@ -7,7 +7,6 @@ import re # Para evaluar expresiones regulares
 
 # instacia del bot
 bot = telebot.TeleBot(TLG_TOKEN)  # Le pasamos el token del bot a instanciar
-option = ""
 
 # respuesta al comando /start
 @bot.message_handler(commands=["start"])  # Se establece un decorador que responderá al comando /start
