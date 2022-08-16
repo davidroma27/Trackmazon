@@ -4,6 +4,7 @@ import telebot  # Para importar la API de Telegram
 from telebot.types import InlineKeyboardMarkup # Para crear menu de botones
 from telebot.types import InlineKeyboardButton # Para definir botones inline
 import re # Para evaluar expresiones regulares
+from proxygetter import *
 
 # instacia del bot
 bot = telebot.TeleBot(TLG_TOKEN)  # Le pasamos el token del bot a instanciar
@@ -91,11 +92,15 @@ def process_stock_step(message):
         else:
             bot.send_message(message.chat.id, "URL incorrecta 😢. Introduce un producto de Amazon válido")
 
+        #Obtiene proxies para realizar la conexion a Amazon
+        getProxies()
+        getWorkingProxies()
+        # Obtenemos los datos de Amazon
         amz = AmzScraper(url) # Realizamos scraping con la URL
         stock = amz.getProductStock() # Llamamos al metodo que obtiene el stock
         bot.send_message(message.chat.id, stock)
     except Exception as e:
-        bot.reply_to(message, "Se ha producido un error al procesar la URL 😢")
+        bot.reply_to(message, "Se ha producido un error durante el rastreo 😢")
 
 def process_prize_step(message):
     try:
@@ -106,11 +111,15 @@ def process_prize_step(message):
         else:
             bot.send_message(message.chat.id, "URL incorrecta 😢. Introduce un producto de Amazon válido")
 
+        #Obtiene proxies para realizar la conexion a Amazon
+        getProxies()
+        getWorkingProxies()
+        # Obtenemos los datos de Amazon
         amz = AmzScraper(url) # Realizamos scraping con la URL
         output = amz.getProductPrize() # Llamamos al metodo que obtiene el stock
         bot.send_message(message.chat.id, output)
     except Exception as e:
-        bot.reply_to(message, "Se ha producido un error al procesar la URL 😢")
+        bot.reply_to(message, "Se ha producido un error durante el rastreo 😢")
 
 
 
