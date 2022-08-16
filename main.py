@@ -91,16 +91,17 @@ def process_stock_step(message):
             bot.send_message(message.chat.id, "La URL introducida es correcta")
         else:
             bot.send_message(message.chat.id, "URL incorrecta 😢. Introduce un producto de Amazon válido")
-
-        #Obtiene proxies para realizar la conexion a Amazon
-        getProxies()
-        getWorkingProxies()
         # Obtenemos los datos de Amazon
         amz = AmzScraper(url) # Realizamos scraping con la URL
         stock = amz.getProductStock() # Llamamos al metodo que obtiene el stock
-        bot.send_message(message.chat.id, stock)
+        # if(stock == 'En stock.'):
+        #    bot.send_message(message.chat.id, f'Hey! Tu producto vuelve a estar disponible! 🤩'
+        #                                      f'{url}')
+        if(stock == 'En stock.'):
+            bot.send_message(message.chat.id, stock)
     except Exception as e:
-        bot.reply_to(message, "Se ha producido un error durante el rastreo 😢")
+        # bot.reply_to(message, "Se ha producido un error durante el rastreo 😢")
+        bot.reply_to(message, str(e))
 
 def process_prize_step(message):
     try:

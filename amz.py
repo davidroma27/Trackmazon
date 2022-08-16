@@ -60,26 +60,31 @@ class AmzScraper(Scraper):
         self.response = self.session.get(url) # Se pasa la URL del producto a rastrear
         self.response.html.render(sleep=1) # Espera a que renderice la pagina
 
+    # Rastrea un producto que NO TIENE STOCK
     def getProductStock(self):
-        # soup = BeautifulSoup(self.request.text, 'html.parser')
-        # stock = soup.select("span.a-size-medium a-color-success")
+        # soup = BeautifulSoup(self.response.text, 'html.parser')
+        # stock = soup.find('span', class_='a-size-medium a-color-success').text
         try:
-            stock = self.response.html.find('span.a-offscreen')[0].text
+            stock = self.response.html.find('span.a-size-medium, a-color-success', first=True).text
+            if stock == '':
+                stock = self.response.html.find('span.a-size-medium, a-color-state', first=True).text
+            else:
+                pass
         except:
-            stock = self.response.html.find('span.a-size-medium a-color-price header-price a-text-normal')[0].text
-        # status = self.request.status_code
+            stock = '' # Devuelve vacío cuando el producto no muestra información de stock
         return stock
 
+    # Rastrea el PRECIO de un producto que tiene stock
     def getProductPrize(self):
         # soup = BeautifulSoup(self.request.text, 'html.parser')
         # prize = soup.select("span.a-offscreen")
         try:
-            prize = self.response.html.find('span.a-size-medium a-color-success')[0].text
+            prize = self.response.html.find('span.a-offscreen')[0].text
         except:
-            prize = '' # Devuelve vacío cuando el producto no muestra información de precio
+            prize = self.response.html.find('span.a-size-medium, a-color-price, header-price, a-text-normal')[0].text
         return prize
 
-if __name__ == "__main__":
-    # getProxies()
-    amz = AmzScraper('https://www.amazon.es/SteelSeries-Arctis-Console-Auriculares-Playstation/dp/B07HBGBFT9/')
-    print(amz.getProductPrize())
+# if __name__ == "__main__":
+# #     # getProxies()
+#     amz = AmzScraper('https://www.amazon.es/Building-Scalable-Data-Warehouse-Vault/dp/0128025107/')
+#     print(amz.getProductPrize())
