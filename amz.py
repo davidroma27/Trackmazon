@@ -5,12 +5,7 @@
 from abc import ABC, abstractmethod  # Imports ABC module
 from bs4 import BeautifulSoup  # Imports scraping module
 from requests_html import *
-from requests import *
-import random
-
-from requests.auth import HTTPBasicAuth
-
-from proxygetter2 import *
+import asyncio
 from config import *
 
 
@@ -29,11 +24,11 @@ from config import *
 class Scraper(ABC):
 
     @abstractmethod
-    def getProductPrize(self):
+    def getProductPrize(self, s, url):
         pass
 
     @abstractmethod
-    def getProductStock(self):
+    def getProductStock(self, s, url):
         pass
 
 
@@ -54,20 +49,27 @@ class AmzScraper(Scraper):
     #     # self.request = requests.get(url, self.headers, proxies={ "http": self.proxy, "https": self.proxy }, timeout=5)
     #     self.request = requests.get(url, self.headers, timeout=5)
 
-    def __init__(self, url):
-        # Crea una sesion HTML
-        self.session = HTMLSession()
-        self.response = self.session.get(url) # Se pasa la URL del producto a rastrear
-        self.response.html.render(sleep=1) # Espera a que renderice la pagina
+    # def __init__(self, url):
+    #     # Crea una sesion HTML
+    #     self.session = AsyncHTMLSession()
+    #     self.response = self.session.get(url) # Se pasa la URL del producto a rastrear
+    #     self.response.html.render(sleep=1) # Espera a que renderice la pagina
 
     # Rastrea un producto que NO TIENE STOCK
-    def getProductStock(self):
+    async def getProductStock(self, s, url):
         # soup = BeautifulSoup(self.response.text, 'html.parser')
         # stock = soup.find('span', class_='a-size-medium a-color-success').text
+
+        # Crea una sesion HTML
+        # session = AsyncHTMLSession()
+        response = await s.get(url) # Se pasa la URL del producto a rastrear
+        await response.html.arender(sleep=1) # Espera a que renderice la pagina
+
+
         try:
-            stock = self.response.html.find('span.a-size-medium, a-color-success', first=True).text
+            stock = response.html.find('span.a-size-medium, a-color-success', first=True).text
             if stock == '':
-                stock = self.response.html.find('span.a-size-medium, a-color-state', first=True).text
+                stock = response.html.find('span.a-size-medium, a-color-state', first=True).text
             else:
                 pass
         except:
@@ -75,14 +77,28 @@ class AmzScraper(Scraper):
         return stock
 
     # Rastrea el PRECIO de un producto que tiene stock
-    def getProductPrize(self):
+    async def getProductPrize(self, s, url):
         # soup = BeautifulSoup(self.request.text, 'html.parser')
         # prize = soup.select("span.a-offscreen")
+        response = await s.get(url) # Se pasa la URL del producto a rastrear
+        await response.html.arender(sleep=1) # Espera a que renderice la pagina
+
         try:
-            prize = self.response.html.find('span.a-offscreen')[0].text
+            prize = response.html.find('span.a-offscreen')[0].text
         except:
-            prize = self.response.html.find('span.a-size-medium, a-color-price, header-price, a-text-normal')[0].text
+            prize = response.html.find('span.a-size-medium, a-color-price, header-price, a-text-normal')[0].text
         return prize
+
+
+    async def main(self, url, action):
+        global task
+        s = AsyncHTMLSession()
+        if action == 'stock':
+            task = self.getProductStock(s, url)
+        if action == 'precio':
+            task = self.getProductPrize(s, url)
+
+        return await task
 
 # if __name__ == "__main__":
 # #     # getProxies()
