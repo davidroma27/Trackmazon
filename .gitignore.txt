@@ -1,3 +1,4 @@
 .idea
 __pycache__/
 comandos.txt
+trackings_dbms

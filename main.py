@@ -12,7 +12,7 @@ import re  # Para evaluar expresiones regulares
 
 # instacia del bot
 bot = AsyncTeleBot(TLG_TOKEN)  # Le pasamos el token del bot a instanciar
-db = DBHelper() #Instancia de la base de datos
+db = DBHelper()  #Instancia de la base de datos
 
 # respuesta al comando /start
 @bot.message_handler(commands=["start"])  # Se establece un decorador que responderá al comando /start
