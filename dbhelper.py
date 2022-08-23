@@ -1,7 +1,7 @@
 import sqlite3
 
 class DBHelper:
-    def __init__(self, dbname="trackings_dbms"):
+    def __init__(self, dbname="trackings"):
         self.dbname = dbname
         self.conn = sqlite3.connect(dbname)
 
