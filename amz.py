@@ -90,6 +90,9 @@ class AmzScraper(Scraper):
         return prize
 
 
+    #Metodo main que gestiona las peticiones de forma asincrona mediante tareas. Dos parametros:
+    # url: La url a la que se realiza la peticion
+    # action : Se indica la accion a realizar para llamar al metodo necesario
     async def main(self, url, action):
         global task
         s = AsyncHTMLSession()
@@ -98,7 +101,7 @@ class AmzScraper(Scraper):
         if action == 'precio':
             task = self.getProductPrize(s, url)
 
-        return await task
+        return await asyncio.gather(task)
 
 # if __name__ == "__main__":
 # #     # getProxies()

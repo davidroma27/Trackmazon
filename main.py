@@ -6,11 +6,13 @@ import asyncio
 import aiohttp
 from telebot.types import InlineKeyboardMarkup  # Para crear menu de botones
 from telebot.types import InlineKeyboardButton  # Para definir botones inline
+from multiprocessing import freeze_support
+from dbhelper import DBHelper
 import re  # Para evaluar expresiones regulares
-from proxygetter import *
 
 # instacia del bot
 bot = AsyncTeleBot(TLG_TOKEN)  # Le pasamos el token del bot a instanciar
+db = DBHelper() #Instancia de la base de datos
 
 # respuesta al comando /start
 @bot.message_handler(commands=["start"])  # Se establece un decorador que responderá al comando /start
@@ -81,6 +83,8 @@ async def start(message):
 # Gestiona los mensajes con enlaces de amazon
 async def handle_url(message):
     global url
+    global urlMsg
+    urlMsg = message
     url = message.text
     await bot.reply_to(message, "La url introducida es correcta")
 
@@ -100,12 +104,13 @@ async def respuesta_botones(call): # Gestiona las acciones del menu de botones
         try:
             # Obtenemos los datos de Amazon
             await bot.send_message(chat_id, "Obteniendo stock...")
-            amz = AmzScraper() # Realizamos scraping con la URL
-            stock = await amz.main(url, 'stock') # Llamamos al metodo que obtiene el stock
-
+            amz = AmzScraper()
+            stock = await amz.main(url, 'stock') # Realiza el scraping para stock
+            await bot.send_message(chat_id, f'Estado: {stock}')
             if stock == 'En stock.':
                 await bot.send_message(chat_id, f'Hey! Tu producto vuelve a estar disponible! 🤩'
                                                         f'{url}')
+            db.add_tracking(chat_id,url,'stock',stock[0])
         except Exception as e:
             # bot.reply_to(message, "Se ha producido un error durante el rastreo 😢")
             await bot.send_message(chat_id, str(e))
@@ -113,9 +118,14 @@ async def respuesta_botones(call): # Gestiona las acciones del menu de botones
         try:
             # Obtenemos los datos de Amazon
             await bot.send_message(chat_id, "Obteniendo precio...")
-            amz = AmzScraper()  # Realizamos scraping con la URL
-            precio = await amz.main(url, 'precio')  # Llamamos al metodo que obtiene el stock
-            await bot.send_message(chat_id, f'Precio del producto {precio}')
+            amz = AmzScraper()
+            stock = await amz.main(url, 'stock') # Comprobamos que el producto esta disponible
+            if stock != '' or stock != 'No disponible.':
+                precio = await amz.main(url, 'precio')  # Realiza el scraping para precio
+                await bot.send_message(chat_id, f'Precio del producto {precio[0]}')
+            else:
+                await bot.reply_to(urlMsg, f'Imposible rastrear precio, el producto no tiene stock 😢')
+
         except Exception as e:
             await bot.reply_to(call.message, "Se ha producido un error durante el rastreo 😢")
 
@@ -176,9 +186,12 @@ async def respuesta_botones(call): # Gestiona las acciones del menu de botones
 #     except Exception as e:
 #         await bot.reply_to(message, "Se ha producido un error durante el rastreo 😢")
 #
+# respuesta al comando /list
+@bot.message_handler(commands=["list"])  # Se establece un decorador que responderá al comando /list
+
 
 # Responde a los mensajes de texto que no son comandos
-@bot.message_handler(content_types=["text"])
+@bot.message_handler(content_types=["list"])
 # Gestiona mensajes de texto
 async def text_messages(message):
     if message.text.startswith("/"):
@@ -189,6 +202,7 @@ async def text_messages(message):
 
 # --- MAIN ---
 if __name__ == "__main__":
+    freeze_support()
     print('Iniciando el bot')
     # Enable saving next step handlers to file "./.handlers-saves/step.save".
     # Delay=2 means that after any change in next step handlers (e.g. calling register_next_step_handler())
@@ -200,5 +214,5 @@ if __name__ == "__main__":
     # bot.load_next_step_handlers()
 
     # bot.infinity_polling()  # Permanece a la escucha de nuevos mensajes
-    asyncio.run(bot.polling())
+    asyncio.run(bot.infinity_polling())
     print('Fin')
