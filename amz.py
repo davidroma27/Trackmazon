@@ -60,37 +60,51 @@ class AmzScraper(Scraper):
         # soup = BeautifulSoup(self.response.text, 'html.parser')
         # stock = soup.find('span', class_='a-size-medium a-color-success').text
 
-        # Crea una sesion HTML
-        # session = AsyncHTMLSession()
-        response = await s.get(url) # Se pasa la URL del producto a rastrear
-        await response.html.arender(sleep=1) # Espera a que renderice la pagina
-
+        response = await s.get(url)  # Se pasa la URL del producto a rastrear
+        await response.html.arender(sleep=1)  # Espera a que renderice la pagina
 
         try:
+            title = response.html.find('span#productTitle')[0].text
             stock = response.html.find('span.a-size-medium, a-color-success', first=True).text
             if stock == '':
                 stock = response.html.find('span.a-size-medium, a-color-state', first=True).text
             else:
                 pass
         except:
-            stock = '' # Devuelve vacío cuando el producto no muestra información de stock
-        return stock
+            stock = ''  # Devuelve vacío cuando el producto no muestra información de stock
+            title = ''
+        return title, stock
 
     # Rastrea el PRECIO de un producto que tiene stock
     async def getProductPrize(self, s, url):
         # soup = BeautifulSoup(self.request.text, 'html.parser')
         # prize = soup.select("span.a-offscreen")
-        response = await s.get(url) # Se pasa la URL del producto a rastrear
-        await response.html.arender(sleep=1) # Espera a que renderice la pagina
+        response = await s.get(url)  # Se pasa la URL del producto a rastrear
+        await response.html.arender(sleep=1)  # Espera a que renderice la pagina
 
         try:
+            title = response.html.find('span#productTitle')[0].text
             prize = response.html.find('span.a-offscreen')[0].text
+            if prize == '':
+                prize = response.html.find('span.a-size-medium, a-color-price, header-price, a-text-normal')[0].text
+            else:
+                pass
         except:
-            prize = response.html.find('span.a-size-medium, a-color-price, header-price, a-text-normal')[0].text
-        return prize
+            title = ''
+            prize = ''
+        return title, prize
 
+    async def getProductTitle(self, s, url):
+        response = await s.get(url)  # Se pasa la URL del producto a rastrear
+        await response.html.arender(sleep=1)  # Espera a que renderice la pagina
 
-    #Metodo main que gestiona las peticiones de forma asincrona mediante tareas. Dos parametros:
+        try:
+            title = response.html.find('span#productTitle')[0].text
+        except:
+            title = ''
+        return title
+
+    # Metodo main que gestiona las peticiones de forma asincrona mediante tareas. Dos parametros:
     # url: La url a la que se realiza la peticion
     # action : Se indica la accion a realizar para llamar al metodo necesario
     async def main(self, url, action):
@@ -101,7 +115,7 @@ class AmzScraper(Scraper):
         if action == 'precio':
             task = self.getProductPrize(s, url)
 
-        return await asyncio.gather(task)
+        return await task
 
 # if __name__ == "__main__":
 # #     # getProxies()

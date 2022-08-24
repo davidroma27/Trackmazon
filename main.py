@@ -12,12 +12,14 @@ import re  # Para evaluar expresiones regulares
 
 # instacia del bot
 bot = AsyncTeleBot(TLG_TOKEN)  # Le pasamos el token del bot a instanciar
-db = DBHelper()  #Instancia de la base de datos
+db = DBHelper()  # Instancia de la base de datos
+
 
 # respuesta al comando /start
 @bot.message_handler(commands=["start"])  # Se establece un decorador que responderá al comando /start
 async def start(message):
-    await bot.send_message(message.chat.id, "👋 Bienvenido a Trackmazon! 👋 \n Para empezar introduce la URL de un producto")
+    await bot.send_message(message.chat.id,
+                           "👋 Bienvenido a Trackmazon! 👋 \n Para empezar introduce la URL de un producto")
 # async def cmd_start(message):
 #     markup = InlineKeyboardMarkup(row_width=1)  # Establecemos un boton por fila (3 por defecto)
 #     b_stock = InlineKeyboardButton("Rastrear stock 📈", callback_data="stock")
@@ -88,15 +90,16 @@ async def handle_url(message):
     url = message.text
     await bot.reply_to(message, "La url introducida es correcta")
 
-    markup = InlineKeyboardMarkup(row_width=1) # Establecemos un boton por fila (3 por defecto)
+    markup = InlineKeyboardMarkup(row_width=1)  # Establecemos un boton por fila (3 por defecto)
     b_stock = InlineKeyboardButton("Rastrear stock 📈", callback_data="stock")
     b_precio = InlineKeyboardButton("Rastrear precio 💸", callback_data="precio")
-    markup.add(b_stock,b_precio) # Agregamos los botones al markup
+    markup.add(b_stock, b_precio)  # Agregamos los botones al markup
     await bot.send_message(message.chat.id, "Elige la opción que quieres rastrear: ",
                            reply_markup=markup)
 
-@bot.callback_query_handler(func=lambda call: True)
-async def respuesta_botones(call): # Gestiona las acciones del menu de botones
+
+@bot.callback_query_handler(func=lambda call: call.data == 'stock' or call.data == 'precio')
+async def respuesta_botones(call):  # Gestiona las acciones del menu de botones
     chat_id = call.from_user.id
     message_id = call.message.id
 
@@ -105,29 +108,66 @@ async def respuesta_botones(call): # Gestiona las acciones del menu de botones
             # Obtenemos los datos de Amazon
             await bot.send_message(chat_id, "Obteniendo stock...")
             amz = AmzScraper()
-            stock = await amz.main(url, 'stock') # Realiza el scraping para stock
-            await bot.send_message(chat_id, f'Estado: {stock}')
+            stock = await amz.main(url, 'stock')  # Realiza el scraping para stock
+            await bot.send_message(chat_id, f'{stock[0]} : {stock[1]}')
             if stock == 'En stock.':
                 await bot.send_message(chat_id, f'Hey! Tu producto vuelve a estar disponible! 🤩'
-                                                        f'{url}')
-            db.add_tracking(chat_id,url,'stock',stock[0])
+                                                f'{url}')
+            db.add_tracking(chat_id, url, stock[0], 'stock',
+                            stock[1])  # Se almacena en la base de datos el nuevo rastreo
         except Exception as e:
-            # bot.reply_to(message, "Se ha producido un error durante el rastreo 😢")
-            await bot.send_message(chat_id, str(e))
+            await bot.reply_to(call.message, "Se ha producido un error durante el rastreo 😢")
+            # await bot.send_message(chat_id, str(e))
+
     if call.data == 'precio':
+        global precio
         try:
             # Obtenemos los datos de Amazon
             await bot.send_message(chat_id, "Obteniendo precio...")
             amz = AmzScraper()
-            stock = await amz.main(url, 'stock') # Comprobamos que el producto esta disponible
+            stock = await amz.main(url, 'stock')  # Comprobamos que el producto esta disponible
             if stock != '' or stock != 'No disponible.':
                 precio = await amz.main(url, 'precio')  # Realiza el scraping para precio
-                await bot.send_message(chat_id, f'Precio del producto {precio[0]}')
+                await bot.send_message(chat_id, f'<b> Rastreando producto </b> ✅\n '
+                                                f'🔷 {precio[0]}\n'
+                                                f'🔸 Precio actual: {precio[1]}\n', parse_mode="html")
             else:
                 await bot.reply_to(urlMsg, f'Imposible rastrear precio, el producto no tiene stock 😢')
-
+            db.add_tracking(chat_id, url, precio[0], 'precio', precio[1])  # Se almacena en la base de datos el nuevo rastreo
         except Exception as e:
             await bot.reply_to(call.message, "Se ha producido un error durante el rastreo 😢")
+
+# respuesta al comando /list
+@bot.message_handler(commands=["list"])  # Se establece un decorador que responderá al comando /list
+async def list_products(message):
+    global lista
+    lista = db.get_trackings(message.chat.id)  # Obtiene de la BD los productos del usuario
+    n_items = len(lista)
+    msg = f'<b>Estás rastreando {n_items} productos</b>\n\n'
+
+    markup = InlineKeyboardMarkup()
+
+    for e in lista:
+        msg += f'🔹 [{lista.index(e)}] - {e}\n'
+        markup.add(InlineKeyboardButton(f'[{lista.index(e)}]', callback_data=f'{lista.index(e)}'))
+
+    if len(lista) > 0:
+        msg += f'\nPuedes seleccionar debajo un producto para eliminar 👇'
+
+    await bot.send_message(message.chat.id, msg, parse_mode="html", reply_markup=markup)
+
+
+@bot.callback_query_handler(func=lambda call: True)
+async def eliminar_producto(req):
+    chat_id = req.from_user.id
+    titulo = lista[int(req.data)]
+    producto = db.get_url(titulo).pop()[0]
+    try:
+        db.del_tracking(producto, chat_id)
+        await bot.send_message(chat_id, f"El producto ha sido eliminado ✅")
+    except Exception as e:
+        await bot.send_message(chat_id, str(e))
+
 
 
 
@@ -186,18 +226,36 @@ async def respuesta_botones(call): # Gestiona las acciones del menu de botones
 #     except Exception as e:
 #         await bot.reply_to(message, "Se ha producido un error durante el rastreo 😢")
 #
-# respuesta al comando /list
-@bot.message_handler(commands=["list"])  # Se establece un decorador que responderá al comando /list
+# respuesta al comando /help
+@bot.message_handler(commands=["help"])  # Se establece un decorador que responderá al comando /help
+async def show_help(message):
+    msg_help = f'🆘 <b>Ayuda</b> 🆘 \n\n' \
+                f'<b>🔶 ¿Qué es Trackmazon?</b> \n' \
+                f'   🔹 Trackmazon es un asistente que te ayuda a encontrar las mejores ofertas de productos de Amazon, ' \
+                f'avisándote cuando un producto vuelva a tener stock o haya bajado su precio. \n\n' \
+                f'<b>🔶 ¿Como funciona Trackmazon?</b> \n' \
+                f'🔹 Puedes escoger entre 2 opciones: \n     <b>1.</b> Rastrear un producto que no está en stock. Trackmazon te avisará' \
+                f' cuando ese producto vuelva a estar disponible.\n     <b>2.</b> Rastrear el precio de un producto. Trackmazon te avisará' \
+                f' cuando el precio de un producto esté por debajo del precio que has indicado.\n\n' \
+                f'<b>🔶 ¿Como veo los productos que estoy rastreando?</b> \n' \
+                f'🔹 Con el comando /list se mostrarán todos los productos que estás rastreando en ese momento.\n' \
+                f'<b>🔶 ¿Qué hago si quiero dejar de rastrear un producto?</b> \n' \
+                f'🔹 En el menú donde se muestran los productos que estas rastreando puedes elegir el' \
+                f'producto que quieres eliminar\n'
+
+    await bot.send_message(message.chat.id, msg_help, parse_mode="html")
 
 
 # Responde a los mensajes de texto que no son comandos
-@bot.message_handler(content_types=["list"])
+@bot.message_handler(content_types=["text"])
 # Gestiona mensajes de texto
 async def text_messages(message):
     if message.text.startswith("/"):
         await bot.send_message(message.chat.id, "Comando no disponible")
     if message.text.startswith("http"):
         await bot.send_message(message.chat.id, "La URL introducida no es válida")
+    else:
+        await bot.send_message(message.chat.id, "No tengo respuesta para eso pero se me da bien rastrear productos 😉")
 
 
 # --- MAIN ---

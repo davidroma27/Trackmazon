@@ -1,4 +1,5 @@
-.idea
+.idea/
+.handler-saves/
 __pycache__/
 comandos.txt
 trackings_dbms
