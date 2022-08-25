@@ -109,13 +109,21 @@ async def respuesta_botones(call):  # Gestiona las acciones del menu de botones
             await bot.send_message(chat_id, "Obteniendo stock...")
             amz = AmzScraper()
             stock = await amz.main(url, 'stock')  # Realiza el scraping para stock
-            # await bot.send_message(chat_id, f'{stock[0]} : {stock[1]}')
-            # if stock == 'En stock.':
-            #     await bot.send_message(chat_id, f'Hey! Tu producto vuelve a estar disponible! 🤩'
-            #                                     f'{url}')
-            db.add_tracking(chat_id, url, stock[0], 'stock', stock[1])  # Se almacena en la base de datos el nuevo rastreo
-            await bot.send_message(chat_id, f'<b> Rastreando stock </b> ✅\n '
+
+            # Si el stock devuelve vacío muestra que no esta disponible
+            if stock[1] == '':
+                await bot.send_message(chat_id, f'Estado actual: No disponible.')
+            else: # Si no, muestra el estado del stock que muestra en la web
+                await bot.send_message(chat_id, f'Estado actual: {stock[1]}')
+
+            # Si no hay stock realiza el rastreo. Si hay stock no hace nada
+            if stock[1] == '' or stock[1] == 'No disponible.':
+                db.add_tracking(chat_id, url, stock[0], 'stock', stock[1])  # Se almacena en la base de datos el nuevo rastreo
+                await bot.send_message(chat_id, f'<b> Rastreando stock </b> ✅\n '
                                             f'🔷 {stock[0]}\n', parse_mode="html")
+            else: # Si el producto ya se encuentra en stock no se rastrea
+                await bot.send_message(chat_id, f'Este producto ya se ecuentra en stock! Prueba a rastrear su precio 😉')
+
         except Exception as e:
             await bot.reply_to(call.message, "Se ha producido un error durante el rastreo 😢")
             # await bot.send_message(chat_id, str(e))
@@ -127,16 +135,23 @@ async def respuesta_botones(call):  # Gestiona las acciones del menu de botones
             await bot.send_message(chat_id, "Obteniendo precio...")
             amz = AmzScraper()
             stock = await amz.main(url, 'stock')  # Comprobamos que el producto esta disponible
-            await bot.send_message(chat_id, f'{stock[1]}')
+
+            # Si el stock devuelve vacío muestra que no esta disponible
+            if stock[1] == '':
+                await bot.send_message(chat_id, f'Estado actual: No disponible.')
+            else: # Si no, muestra el estado del stock que muestra en la web
+                await bot.send_message(chat_id, f'Estado actual: {stock[1]}')
+
+            # Si no hay stock no realiza rastreo de precio
             if stock[1] == '' or stock[1] == 'No disponible.':
-                await bot.reply_to(urlMsg, f'Imposible rastrear precio, el producto no tiene stock 😢')
+                await bot.reply_to(urlMsg, f'El producto no tiene stock, imposible rastrear precio. Prueba a rastrear el stock! 😉')
             else:
+                # Si hay stock rastrea el precio y lo almacena
                 precio = await amz.main(url, 'precio')  # Realiza el scraping para precio
+                db.add_tracking(chat_id, url, precio[0], 'precio', precio[1])  # Se almacena en la base de datos el nuevo rastreo
                 await bot.send_message(chat_id, f'<b> Rastreando precio </b> ✅\n '
                                                 f'🔷 {precio[0]}\n'
                                                 f'🔸 Precio actual: {precio[1]}\n', parse_mode="html")
-                db.add_tracking(chat_id, url, precio[0], 'precio', precio[1])  # Se almacena en la base de datos el nuevo rastreo
-
         except Exception as e:
             # await bot.reply_to(call.message, str(e))
             await bot.reply_to(call.message, "Se ha producido un error durante el rastreo 😢")
@@ -277,5 +292,5 @@ if __name__ == "__main__":
     # bot.load_next_step_handlers()
 
     # bot.infinity_polling()  # Permanece a la escucha de nuevos mensajes
-    asyncio.run(bot.infinity_polling())
+    asyncio.run(bot.polling(non_stop=True, interval=3, timeout=30, request_timeout=300))
     print('Fin')
