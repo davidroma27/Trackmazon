@@ -6,18 +6,14 @@ import asyncio
 import aiohttp
 from telebot.types import InlineKeyboardMarkup  # Para crear menu de botones
 from telebot.types import InlineKeyboardButton  # Para definir botones inline
-from multiprocessing import freeze_support
 from dbhelper import DBHelper
-import schedule
 from threading import *
 from time import sleep
-from concurrent.futures import ProcessPoolExecutor
 import re  # Para evaluar expresiones regulares
 
 # instacia del bot
 bot = AsyncTeleBot(TLG_TOKEN)  # Le pasamos el token del bot a instanciar
 db = DBHelper()  # Instancia de la base de datos
-# check = AsyncIOScheduler()
 
 
 # respuesta al comando /start
@@ -93,6 +89,7 @@ async def start(message):
 async def handle_url(message):
     global url
     global urlMsg
+    chat_id = message.chat.id
     urlMsg = message
     url = message.text
     await bot.reply_to(message, "La url introducida es correcta")
@@ -158,8 +155,10 @@ async def respuesta_botones(call):  # Gestiona las acciones del menu de botones
             else:
                 # Si hay stock rastrea el precio y lo almacena
                 precio = await amz.main(url, 'precio')  # Realiza el scraping para precio
-                db.add_tracking(chat_id, url, precio[0], 'precio',
-                                precio[1])  # Se almacena en la base de datos el nuevo rastreo
+                trim = re.compile(r'[^\d.,]+')
+                valor = trim.sub('', precio[1])
+
+                db.add_tracking(chat_id, url, precio[0], 'precio', valor)  # Se almacena en la base de datos el nuevo rastreo
                 await bot.send_message(chat_id, f'<b> Rastreando precio </b> ✅\n '
                                                 f'🔷 {precio[0]}\n'
                                                 f'🔸 Precio actual: {precio[1]}\n', parse_mode="html")
@@ -289,18 +288,68 @@ async def text_messages(message):
         await bot.send_message(message.chat.id, "No tengo respuesta para eso pero se me da bien rastrear productos 😉")
 
 
-# async def schedule_check():
-#     schedule.every(5).seconds.do(product_checker)
-
-async def product_checker():
+# Funcion que gestiona la ejecucion de la funcion de rastreo pasadole un intervalo de tiempo
+async def schedule_checker(interval, func):
     while True:
-        await bot.send_message('216598534', "Checking")
-        sleep(3)
+        await asyncio.gather(
+            asyncio.sleep(interval),
+            func()
+        )
 
+
+# Rastrea los productos almacenados en la BD
+async def product_checker():
+    productos = db.get_all() # Array de productos
+    # Itera sobre todos los productos de la BD
+    for p in productos:
+        chat_id = p[0]
+        link = p[1]
+        opcion = p[3]
+        estado = p[4]
+
+        await bot.send_message(chat_id, f"Rastreando el producto {productos.index(p)}")
+        try:
+            # Si la opcion es stock rastreamos el stock del producto
+            if opcion == 'stock':
+                amz = AmzScraper()
+                newStock = await amz.main(link, 'stock')  # Realiza el scraping para stock
+
+                if newStock[1] == 'En stock.':
+                    await bot.send_message(chat_id, f'Hey! Tu producto vuelve a estar disponible! 🤑\n'
+                                                    f'🔷 {link}')
+                    db.update_estado(newStock[1], chat_id, link) # Actualiza el estado en la BD
+        except Exception as e:
+            print(e)
+
+        try:
+            if opcion == 'precio':
+                amz = AmzScraper()
+                newStock = await amz.main(link, 'stock')  # Realiza el scraping para stock
+                if newStock[1] == '' or newStock[1] == 'No disponible.':
+                    await bot.send_message(chat_id, f'Tu producto con rastreo de precio se ha quedado sin stock! 😢\n'
+                                                    f'{link}')
+
+                newPrecio = await amz.main(link, 'precio')
+                # Formatea el valor del nuevo precio
+                trim = re.compile(r'[^\d.,]+')
+                valor = trim.sub('', newPrecio[1])
+                # Si el precio actual es menor que el almacenado en la BD se actualiza y notifica al usuario
+                if valor < estado:
+                    await bot.send_message(chat_id, f'Hey! Tu producto ha bajado de precio! 🤑\n'
+                                                    f'🔷 {link}')
+                    db.update_estado(valor, chat_id, link) # Actualiza el precio del producto
+        except Exception as e:
+            print(e)
+
+
+# Crea 2 tareas. Una para ejecutar el bot en general y otra para rastrear periodicamente los productos
 async def main():
-    task1 = asyncio.create_task(bot.polling(non_stop=True, interval=3, timeout=30, request_timeout=300))
-    task2 = asyncio.create_task(product_checker())
+    task1 = asyncio.create_task(
+        bot.polling(non_stop=True, interval=3, timeout=30, request_timeout=300))  # Ejecuta el bot polling
+    task2 = asyncio.create_task(schedule_checker(300,
+                                                 product_checker))  # Crea una tarea programada cada 5 minutos que ejecuta la funcion de rastreo
     await asyncio.gather(task1, task2)
+
 
 # --- MAIN ---
 if __name__ == "__main__":
@@ -317,7 +366,6 @@ if __name__ == "__main__":
     # check.add_job(product_checker, 'interval', seconds=5)
     # check.start()
 
-
     # asyncio.run(bot.polling(non_stop=True, interval=3, timeout=30, request_timeout=300))
     # t1 = Thread(target=asyncio.run(bot.polling(non_stop=True, interval=3, timeout=30, request_timeout=300)))
     # t2 = Thread(target=asyncio.run(schedule.every(5).seconds.do(schedule_check)))
@@ -326,13 +374,13 @@ if __name__ == "__main__":
     # t1.join()
     # t2.join()
 
-    asyncio.run(main())
-
     # executor = ProcessPoolExecutor(2)
     # loop = asyncio.get_event_loop()
     # bot_event = loop.run_in_executor(executor, main)
     # checker_event = loop.run_in_executor(executor, schedule_check)
     #
     # loop.run_forever()
+
+    asyncio.run(main())
 
     # bot.infinity_polling()  # Permanece a la escucha de nuevos mensajes

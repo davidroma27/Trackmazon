@@ -46,6 +46,17 @@ class DBHelper:
         args = (titulo, )
         return self.conn.execute(stmt, args).fetchall()
 
+    def get_all(self):
+        stmt = "SELECT * FROM trackings"
+        return self.conn.execute(stmt).fetchall()
+
+    def update_estado(self, status, chat_id, url):
+        stmt = "UPDATE trackings SET estado = (?) WHERE chatid = ? AND url = ?"
+        args = (status, chat_id, url)
+        self.conn.execute(stmt, args)
+        self.conn.commit()
+
+
 # if __name__ == "__main__":
 #     db = DBHelper()
 #     db.setup()
