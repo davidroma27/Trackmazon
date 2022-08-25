@@ -85,24 +85,25 @@ class AmzScraper(Scraper):
         try:
             title = response.html.find('span#productTitle')[0].text
             prize = response.html.find('span.a-offscreen')[0].text
-            if prize == '':
-                prize = response.html.find('span.a-size-medium, a-color-price, header-price, a-text-normal')[0].text
-            else:
-                pass
-        except:
+            # if prize == '':
+            #     prize = response.html.find('span.a-size-medium, a-color-price, header-price, a-text-normal')[0].text
+            # else:
+            #     pass
+        except Exception as e:
+            print(e)
             title = ''
             prize = ''
         return title, prize
 
-    async def getProductTitle(self, s, url):
-        response = await s.get(url)  # Se pasa la URL del producto a rastrear
-        await response.html.arender(sleep=1)  # Espera a que renderice la pagina
-
-        try:
-            title = response.html.find('span#productTitle')[0].text
-        except:
-            title = ''
-        return title
+    # async def getProductTitle(self, s, url):
+    #     response = await s.get(url)  # Se pasa la URL del producto a rastrear
+    #     await response.html.arender(sleep=1)  # Espera a que renderice la pagina
+    #
+    #     try:
+    #         title = response.html.find('span#productTitle')[0].text
+    #     except:
+    #         title = ''
+    #     return title
 
     # Metodo main que gestiona las peticiones de forma asincrona mediante tareas. Dos parametros:
     # url: La url a la que se realiza la peticion
@@ -118,6 +119,7 @@ class AmzScraper(Scraper):
         return await task
 
 # if __name__ == "__main__":
-# #     # getProxies()
-#     amz = AmzScraper('https://www.amazon.es/Building-Scalable-Data-Warehouse-Vault/dp/0128025107/')
-#     print(amz.getProductPrize())
+#     amz = AmzScraper()
+#     s = AsyncHTMLSession()
+#     precio = await amz.getProductPrize(s, 'https://www.amazon.es/GoPro-Kit-HERO8-Black-repuesto/dp/B08981WMRP/ref=sr_1_146?__mk_es_ES=%C3%85M%C3%85%C5%BD%C3%95%C3%91&keywords=GoPro&qid=1661428211&s=electronics&sr=1-146&th=1')
+#     print(precio)

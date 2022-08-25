@@ -109,12 +109,13 @@ async def respuesta_botones(call):  # Gestiona las acciones del menu de botones
             await bot.send_message(chat_id, "Obteniendo stock...")
             amz = AmzScraper()
             stock = await amz.main(url, 'stock')  # Realiza el scraping para stock
-            await bot.send_message(chat_id, f'{stock[0]} : {stock[1]}')
-            if stock == 'En stock.':
-                await bot.send_message(chat_id, f'Hey! Tu producto vuelve a estar disponible! 🤩'
-                                                f'{url}')
-            db.add_tracking(chat_id, url, stock[0], 'stock',
-                            stock[1])  # Se almacena en la base de datos el nuevo rastreo
+            # await bot.send_message(chat_id, f'{stock[0]} : {stock[1]}')
+            # if stock == 'En stock.':
+            #     await bot.send_message(chat_id, f'Hey! Tu producto vuelve a estar disponible! 🤩'
+            #                                     f'{url}')
+            db.add_tracking(chat_id, url, stock[0], 'stock', stock[1])  # Se almacena en la base de datos el nuevo rastreo
+            await bot.send_message(chat_id, f'<b> Rastreando stock </b> ✅\n '
+                                            f'🔷 {stock[0]}\n', parse_mode="html")
         except Exception as e:
             await bot.reply_to(call.message, "Se ha producido un error durante el rastreo 😢")
             # await bot.send_message(chat_id, str(e))
@@ -126,15 +127,18 @@ async def respuesta_botones(call):  # Gestiona las acciones del menu de botones
             await bot.send_message(chat_id, "Obteniendo precio...")
             amz = AmzScraper()
             stock = await amz.main(url, 'stock')  # Comprobamos que el producto esta disponible
-            if stock != '' or stock != 'No disponible.':
+            await bot.send_message(chat_id, f'{stock[1]}')
+            if stock[1] == '' or stock[1] == 'No disponible.':
+                await bot.reply_to(urlMsg, f'Imposible rastrear precio, el producto no tiene stock 😢')
+            else:
                 precio = await amz.main(url, 'precio')  # Realiza el scraping para precio
-                await bot.send_message(chat_id, f'<b> Rastreando producto </b> ✅\n '
+                await bot.send_message(chat_id, f'<b> Rastreando precio </b> ✅\n '
                                                 f'🔷 {precio[0]}\n'
                                                 f'🔸 Precio actual: {precio[1]}\n', parse_mode="html")
-            else:
-                await bot.reply_to(urlMsg, f'Imposible rastrear precio, el producto no tiene stock 😢')
-            db.add_tracking(chat_id, url, precio[0], 'precio', precio[1])  # Se almacena en la base de datos el nuevo rastreo
+                db.add_tracking(chat_id, url, precio[0], 'precio', precio[1])  # Se almacena en la base de datos el nuevo rastreo
+
         except Exception as e:
+            # await bot.reply_to(call.message, str(e))
             await bot.reply_to(call.message, "Se ha producido un error durante el rastreo 😢")
 
 # respuesta al comando /list
@@ -145,16 +149,16 @@ async def list_products(message):
     n_items = len(lista)
     msg = f'<b>Estás rastreando {n_items} productos</b>\n\n'
 
-    markup = InlineKeyboardMarkup()
+    teclado = InlineKeyboardMarkup(row_width=3)
 
     for e in lista:
         msg += f'🔹 [{lista.index(e)}] - {e}\n'
-        markup.add(InlineKeyboardButton(f'[{lista.index(e)}]', callback_data=f'{lista.index(e)}'))
+        teclado.add(InlineKeyboardButton(f'[{lista.index(e)}]', callback_data=f'{lista.index(e)}'))
 
     if len(lista) > 0:
         msg += f'\nPuedes seleccionar debajo un producto para eliminar 👇'
 
-    await bot.send_message(message.chat.id, msg, parse_mode="html", reply_markup=markup)
+    await bot.send_message(message.chat.id, msg, parse_mode="html", reply_markup=teclado)
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -234,14 +238,16 @@ async def show_help(message):
                 f'   🔹 Trackmazon es un asistente que te ayuda a encontrar las mejores ofertas de productos de Amazon, ' \
                 f'avisándote cuando un producto vuelva a tener stock o haya bajado su precio. \n\n' \
                 f'<b>🔶 ¿Como funciona Trackmazon?</b> \n' \
-                f'🔹 Puedes escoger entre 2 opciones: \n     <b>1.</b> Rastrear un producto que no está en stock. Trackmazon te avisará' \
-                f' cuando ese producto vuelva a estar disponible.\n     <b>2.</b> Rastrear el precio de un producto. Trackmazon te avisará' \
-                f' cuando el precio de un producto esté por debajo del precio que has indicado.\n\n' \
+                f'🔹 Para comenzar a usar Trackmazon escribe el comando /start.\n El bot te pedirá que introduzcas el enlace del' \
+                f' producto que quieres rastrear.' \
+                f' Cuando introduces una URL válida puedes escoger entre 2 opciones: \n     <b>1.</b> Rastrear el stock de un producto que no está disponible.' \
+                f' Trackmazon te avisará cuando ese producto vuelva a tener stock.\n     <b>2.</b> Rastrear el precio de un producto. Trackmazon te avisará' \
+                f' cuando el precio de un producto con stock esté por debajo del precio que has indicado.\n\n' \
                 f'<b>🔶 ¿Como veo los productos que estoy rastreando?</b> \n' \
-                f'🔹 Con el comando /list se mostrarán todos los productos que estás rastreando en ese momento.\n' \
+                f'🔹 Con el comando /list se mostrarán todos los productos que estás rastreando en ese momento.\n\n' \
                 f'<b>🔶 ¿Qué hago si quiero dejar de rastrear un producto?</b> \n' \
-                f'🔹 En el menú donde se muestran los productos que estas rastreando puedes elegir el' \
-                f'producto que quieres eliminar\n'
+                f'🔹 En el menú donde se muestran los productos que estas rastreando (/list) puedes elegir el' \
+                f' producto que quieres eliminar\n'
 
     await bot.send_message(message.chat.id, msg_help, parse_mode="html")
 
@@ -261,10 +267,9 @@ async def text_messages(message):
 # --- MAIN ---
 if __name__ == "__main__":
     freeze_support()
-    print('Iniciando el bot')
     # Enable saving next step handlers to file "./.handlers-saves/step.save".
     # Delay=2 means that after any change in next step handlers (e.g. calling register_next_step_handler())
-    # saving will hapen after delay 2 seconds.
+    # saving will happen after delay 2 seconds.
     # bot.enable_save_next_step_handlers(delay=2)
 
     # Load next_step_handlers from save file (default "./.handlers-saves/step.save")
