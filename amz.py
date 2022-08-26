@@ -73,6 +73,7 @@ class AmzScraper(Scraper):
         except:
             stock = ''  # Devuelve vacío cuando el producto no muestra información de stock
             title = ''
+        await s.close()
         return title, stock
 
     # Rastrea el PRECIO de un producto que tiene stock
@@ -93,6 +94,7 @@ class AmzScraper(Scraper):
             print(e)
             title = ''
             prize = ''
+        await s.close()
         return title, prize
 
     # async def getProductTitle(self, s, url):
@@ -115,7 +117,7 @@ class AmzScraper(Scraper):
             task = self.getProductStock(s, url)
         if action == 'precio':
             task = self.getProductPrize(s, url)
-
+        await s.close()
         return await task
 
 # if __name__ == "__main__":

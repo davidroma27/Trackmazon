@@ -201,7 +201,7 @@ async def product_checker():
             # Si la opcion es stock rastrea el stock del producto
             if opcion == 'stock':
                 amz = AmzScraper()
-                newStock = await amz.main(link, 'stock')  # Realiza el scraping para stock
+                newStock = await amz.main(link, 'stock') # Realiza el scraping para stock
 
                 if newStock[1] == 'En stock.':
                     await bot.send_message(chat_id, f'Hey! Tu producto vuelve a estar disponible! 🤑\n'
