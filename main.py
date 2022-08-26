@@ -2,12 +2,12 @@ from config import *  # se importa el token e IDs
 from amz import *
 import telebot  # Para importar la API de Telegram
 from telebot.async_telebot import AsyncTeleBot
+from telebot import types
 import asyncio
 import aiohttp
 from telebot.types import InlineKeyboardMarkup  # Para crear menu de botones
 from telebot.types import InlineKeyboardButton  # Para definir botones inline
 from dbhelper import DBHelper
-from threading import *
 from time import sleep
 import re  # Para evaluar expresiones regulares
 
@@ -21,63 +21,6 @@ db = DBHelper()  # Instancia de la base de datos
 async def start(message):
     await bot.send_message(message.chat.id,
                            "👋 Bienvenido a Trackmazon! 👋 \n Para empezar introduce la URL de un producto")
-
-
-# async def cmd_start(message):
-#     markup = InlineKeyboardMarkup(row_width=1)  # Establecemos un boton por fila (3 por defecto)
-#     b_stock = InlineKeyboardButton("Rastrear stock 📈", callback_data="stock")
-#     b_precio = InlineKeyboardButton("Rastrear precio 💸", callback_data="precio")
-#     b_delete = InlineKeyboardButton("Eliminar rastreo ❌", callback_data="delete")
-#     b_help = InlineKeyboardButton("Ayuda 🆘", callback_data="help")
-#     markup.add(b_stock, b_precio, b_delete, b_help)  # Agregamos los botones al markup
-#     await bot.send_message(message.chat.id,
-#                            "👋 Bienvenido a Trackmazon! 👋 \n Para empezar elige una opción del menú 👇",
-#                            reply_markup=markup)
-
-
-# @bot.callback_query_handler(func=lambda call: True)
-# async def respuesta_botones(call):  # Gestiona las acciones del menu de botones
-#     chat_id = call.from_user.id
-#     message_id = call.message.id
-#     action = call.data
-#     if call.data == "stock":
-#         action = 'stock'
-#         await bot.send_message(chat_id, f'Has elegido rastrear {action}')
-#         # bot.register_next_step_handler(msg, process_stock_step)
-#     if call.data == "precio":
-#         action = 'precio'
-#         await bot.send_message(chat_id, f"Has elegido rastrear {action}")
-#         # bot.register_next(chat_id, "Introduce la URL del producto que deseas rastrear el precio: ")
-#         # bot.register_next_step_handler(msg, process_prize_step)
-#     if call.data == "delete":
-#         await bot.send_message(chat_id, "Lista de los productos en rastreo")
-#     if call.data == "help":
-#         msg_help = f'🆘 <b>Ayuda</b> 🆘 \n\n' \
-#                    f'<b>🔶 ¿Qué es Trackmazon?</b> \n' \
-#                    f'   🔹 Trackmazon es un asistente que te ayuda a encontrar las mejores ofertas de productos de Amazon, ' \
-#                    f'avisándote cuando un producto vuelva a tener stock o haya bajado su precio. \n\n' \
-#                    f'<b>🔶 ¿Como funciona Trackmazon?</b> \n' \
-#                    f'🔹 Puedes escoger entre 2 opciones: \n     <b>1.</b> Rastrear un producto que no está en stock. Trackmazon te avisará' \
-#                    f' cuando ese producto vuelva a estar disponible.\n     <b>2.</b> Rastrear el precio de un producto. Trackmazon te avisará' \
-#                    f' cuando el precio de un producto esté por debajo del precio que has indicado.\n\n' \
-#                    f'<b>🔶 ¿Qué hago si quiero dejar de rastrear un producto?</b> \n' \
-#                    f'🔹 En el menú principal (cuando escribes el comando /start) existe una opción "Eliminar rastreo" que' \
-#                    f' listará todos los productos que están siendo rastreados y podrás elegir uno para dejar de rastrearlo. \n'
-#
-#         await bot.send_message(chat_id, msg_help, parse_mode="html")
-
-
-# # Responde al comando /stock
-# @bot.message_handler(commands=["stock"])
-# async def getData(message):
-#     msg = bot.send_message(message.chat.id, "Introduce la URL del producto que deseas rastrear: ")
-#     bot.register_next_step_handler(msg, process_stock_step)
-#
-# # Responde al comando /precio
-# @bot.message_handler(commands=["precio"])
-# def getData(message):
-#     msg = bot.send_message(message.chat.id, "Introduce la URL del producto que deseas rastrear: ")
-#     bot.register_next_step_handler(msg, process_prize_step)
 
 
 # Responde a los mensajes que contienen una URL de Amazon
@@ -102,6 +45,7 @@ async def handle_url(message):
                            reply_markup=markup)
 
 
+# Handler que responde a los botones del menu despues de introducir una URL válida
 @bot.callback_query_handler(func=lambda call: call.data == 'stock' or call.data == 'precio')
 async def respuesta_botones(call):  # Gestiona las acciones del menu de botones
     chat_id = call.from_user.id
@@ -158,7 +102,8 @@ async def respuesta_botones(call):  # Gestiona las acciones del menu de botones
                 trim = re.compile(r'[^\d.,]+')
                 valor = trim.sub('', precio[1])
 
-                db.add_tracking(chat_id, url, precio[0], 'precio', valor)  # Se almacena en la base de datos el nuevo rastreo
+                db.add_tracking(chat_id, url, precio[0], 'precio',
+                                valor)  # Se almacena en la base de datos el nuevo rastreo
                 await bot.send_message(chat_id, f'<b> Rastreando precio </b> ✅\n '
                                                 f'🔷 {precio[0]}\n'
                                                 f'🔸 Precio actual: {precio[1]}\n', parse_mode="html")
@@ -175,85 +120,29 @@ async def list_products(message):
     n_items = len(lista)
     msg = f'<b>Estás rastreando {n_items} productos</b>\n\n'
 
-    teclado = InlineKeyboardMarkup(row_width=3)
-
+    teclado = types.InlineKeyboardMarkup(row_width=3)
     for e in lista:
         msg += f'🔹 [{lista.index(e)}] - {e}\n'
-        teclado.add(InlineKeyboardButton(f'[{lista.index(e)}]', callback_data=f'{lista.index(e)}'))
+        teclado.add(types.InlineKeyboardButton(f'[{lista.index(e)}]', callback_data=f'{lista.index(e)}'))
 
     if len(lista) > 0:
         msg += f'\nPuedes seleccionar debajo un producto para eliminar 👇'
 
     await bot.send_message(message.chat.id, msg, parse_mode="html", reply_markup=teclado)
 
-
+# Responde al menú para elminiar un procuto del rastreo
 @bot.callback_query_handler(func=lambda call: True)
 async def eliminar_producto(req):
     chat_id = req.from_user.id
     titulo = lista[int(req.data)]
     producto = db.get_url(titulo).pop()[0]
     try:
-        db.del_tracking(producto, chat_id)
+        db.del_tracking(producto, chat_id) # Se elimina el producto de la BD
         await bot.send_message(chat_id, f"El producto ha sido eliminado ✅")
     except Exception as e:
         await bot.send_message(chat_id, str(e))
 
 
-# Funcion que se ejecuta al seleccionar la opcion "Rastrear Stock"
-# @bot.message_handler(func=lambda action: True)
-# async def process_stock_step(message):
-#     url = message.text
-#
-#     regexp = re.compile(AMZ_REGEXP)
-#     if regexp.match(url):  # Comprueba que la URL coincide con la ExpRegular de las URL de Amazon
-#         await bot.send_message(message.chat.id, "La URL introducida es correcta")
-#     else:
-#         await bot.send_message(message.chat.id, "URL incorrecta 😢. Introduce un producto de Amazon válido")
-#
-#     if action == 'stock':
-#         try:
-#             # Obtenemos los datos de Amazon
-#             await bot.send_message(message.chat.id, "Obteniendo stock...")
-#             amz = AmzScraper()  # Realizamos scraping con la URL
-#             stock = await amz.main(url, 'stock')  # Llamamos al metodo que obtiene el stock
-#
-#             if stock == 'En stock.':
-#                 await bot.send_message(message.chat.id, f'Hey! Tu producto vuelve a estar disponible! 🤩'
-#                                                         f'{url}')
-#         except Exception as e:
-#             # bot.reply_to(message, "Se ha producido un error durante el rastreo 😢")
-#             await bot.reply_to(message, str(e))
-#
-#     if action == 'precio':
-#         try:
-#             # Obtenemos los datos de Amazon
-#             await bot.send_message(message.chat.id, "Obteniendo precio...")
-#             amz = AmzScraper()  # Realizamos scraping con la URL
-#             precio = await amz.main(url, 'precio')  # Llamamos al metodo que obtiene el stock
-#         except Exception as e:
-#             await bot.reply_to(message, "Se ha producido un error durante el rastreo 😢")
-
-
-# @bot.message_handler(func=lambda action: 'precio')
-# async def process_prize_step(message):
-#     action = None
-#     url = message.text
-#     try:
-#         regexp = re.compile(AMZ_REGEXP)
-#         if regexp.match(url):  # Comprueba que la URL coincide con la ExpRegular de las URL de Amazon
-#             await bot.send_message(message.chat.id, "La URL introducida es correcta")
-#         else:
-#             await bot.send_message(message.chat.id, "URL incorrecta 😢. Introduce un producto de Amazon válido")
-#
-#         # Obtenemos los datos de Amazon
-#         await bot.send_message(message.chat.id, "Obteniendo precio...")
-#         amz = AmzScraper()  # Realizamos scraping con la URL
-#         precio = await amz.main(url, 'precio')  # Llamamos al metodo que obtiene el stock
-#
-#         await bot.send_message(message.chat.id, f'El precio de este producto actualmente es {precio}')
-#     except Exception as e:
-#         await bot.reply_to(message, "Se ha producido un error durante el rastreo 😢")
-#
 # respuesta al comando /help
 @bot.message_handler(commands=["ayuda"])  # Se establece un decorador que responderá al comando /help
 async def show_help(message):
@@ -299,7 +188,7 @@ async def schedule_checker(interval, func):
 
 # Rastrea los productos almacenados en la BD
 async def product_checker():
-    productos = db.get_all() # Array de productos
+    productos = db.get_all()  # Array de productos
     # Itera sobre todos los productos de la BD
     for p in productos:
         chat_id = p[0]
@@ -309,7 +198,7 @@ async def product_checker():
 
         await bot.send_message(chat_id, f"Rastreando el producto {productos.index(p)}")
         try:
-            # Si la opcion es stock rastreamos el stock del producto
+            # Si la opcion es stock rastrea el stock del producto
             if opcion == 'stock':
                 amz = AmzScraper()
                 newStock = await amz.main(link, 'stock')  # Realiza el scraping para stock
@@ -317,27 +206,30 @@ async def product_checker():
                 if newStock[1] == 'En stock.':
                     await bot.send_message(chat_id, f'Hey! Tu producto vuelve a estar disponible! 🤑\n'
                                                     f'🔷 {link}')
-                    db.update_estado(newStock[1], chat_id, link) # Actualiza el estado en la BD
+                    db.update_estado(newStock[1], chat_id, link)  # Actualiza el estado en la BD
+                else:
+                    pass
         except Exception as e:
             print(e)
 
         try:
+            # Si la opcion del producto es precio rastrea el precio
             if opcion == 'precio':
                 amz = AmzScraper()
-                newStock = await amz.main(link, 'stock')  # Realiza el scraping para stock
-                if newStock[1] == '' or newStock[1] == 'No disponible.':
+                newStock = await amz.main(link, 'stock')  # Primero comprueba que sigue teniendo stock
+                if newStock[1] == '' or newStock[1] == 'No disponible.':  # Si no tiene stock avisa al usuario
                     await bot.send_message(chat_id, f'Tu producto con rastreo de precio se ha quedado sin stock! 😢\n'
                                                     f'{link}')
-
-                newPrecio = await amz.main(link, 'precio')
-                # Formatea el valor del nuevo precio
-                trim = re.compile(r'[^\d.,]+')
-                valor = trim.sub('', newPrecio[1])
-                # Si el precio actual es menor que el almacenado en la BD se actualiza y notifica al usuario
-                if valor < estado:
-                    await bot.send_message(chat_id, f'Hey! Tu producto ha bajado de precio! 🤑\n'
-                                                    f'🔷 {link}')
-                    db.update_estado(valor, chat_id, link) # Actualiza el precio del producto
+                else:
+                    newPrecio = await amz.main(link, 'precio')  # Si tiene stock obtiene el precio actual
+                    # Formatea el valor del nuevo precio
+                    trim = re.compile(r'[^\d.,]+')
+                    valor = trim.sub('', newPrecio[1])
+                    # Si el precio actual es menor que el almacenado en la BD se actualiza y notifica al usuario
+                    if valor < estado:
+                        await bot.send_message(chat_id, f'Hey! Tu producto ha bajado de precio! 🤑\n'
+                                                        f'🔷 {link}')
+                        db.update_estado(valor, chat_id, link)  # Actualiza el precio del producto
         except Exception as e:
             print(e)
 
