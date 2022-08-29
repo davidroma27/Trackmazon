@@ -1,20 +1,19 @@
 from config import *  # se importa el token e IDs
-from amz import *
+from amz import AmzScraper
 import telebot  # Para importar la API de Telegram
-from telebot.async_telebot import AsyncTeleBot
+from telebot.async_telebot import AsyncTeleBot  # Importamos el bot asincrono
 from telebot import types
 import asyncio
 import aiohttp
 from telebot.types import InlineKeyboardMarkup  # Para crear menu de botones
 from telebot.types import InlineKeyboardButton  # Para definir botones inline
 from dbhelper import DBHelper
-from time import sleep
 import re  # Para evaluar expresiones regulares
 
 # instacia del bot
 bot = AsyncTeleBot(TLG_TOKEN)  # Le pasamos el token del bot a instanciar
 db = DBHelper()  # Instancia de la base de datos
-
+amz = AmzScraper()  # Instancia de la clase de scraping
 
 # respuesta al comando /start
 @bot.message_handler(commands=["start"])  # Se establece un decorador que responderá al comando /start
@@ -49,13 +48,11 @@ async def handle_url(message):
 @bot.callback_query_handler(func=lambda call: call.data == 'stock' or call.data == 'precio')
 async def respuesta_botones(call):  # Gestiona las acciones del menu de botones
     chat_id = call.from_user.id
-    message_id = call.message.id
 
     if call.data == 'stock':
         try:
             # Obtenemos los datos de Amazon
             await bot.send_message(chat_id, "Obteniendo stock...")
-            amz = AmzScraper()
             stock = await amz.main(url, 'stock')  # Realiza el scraping para stock
 
             # Si el stock devuelve vacío muestra que no esta disponible
@@ -67,7 +64,7 @@ async def respuesta_botones(call):  # Gestiona las acciones del menu de botones
             # Si no hay stock realiza el rastreo. Si hay stock no hace nada
             if stock[1] == '' or stock[1] == 'No disponible.':
                 db.add_tracking(chat_id, url, stock[0], 'stock',
-                                stock[1])  # Se almacena en la base de datos el nuevo rastreo
+                                'No disponible.')  # Se almacena en la base de datos el nuevo rastreo
                 await bot.send_message(chat_id, f'<b> Rastreando stock </b> ✅\n '
                                                 f'🔷 {stock[0]}\n', parse_mode="html")
             else:  # Si el producto ya se encuentra en stock no se rastrea
@@ -83,7 +80,6 @@ async def respuesta_botones(call):  # Gestiona las acciones del menu de botones
         try:
             # Obtenemos los datos de Amazon
             await bot.send_message(chat_id, "Obteniendo precio...")
-            amz = AmzScraper()
             stock = await amz.main(url, 'stock')  # Comprobamos que el producto esta disponible
 
             # Si el stock devuelve vacío muestra que no esta disponible
@@ -143,8 +139,8 @@ async def eliminar_producto(req):
         await bot.send_message(chat_id, str(e))
 
 
-# respuesta al comando /help
-@bot.message_handler(commands=["ayuda"])  # Se establece un decorador que responderá al comando /help
+# respuesta al comando /ayuda
+@bot.message_handler(commands=["ayuda"])  # Se establece un decorador que responderá al comando /ayuda
 async def show_help(message):
     msg_help = f'🆘 <b>Ayuda</b> 🆘 \n\n' \
                f'<b>🔶 ¿Qué es Trackmazon?</b> \n' \
@@ -153,9 +149,9 @@ async def show_help(message):
                f'<b>🔶 ¿Como funciona Trackmazon?</b> \n' \
                f'🔹 Para comenzar a usar Trackmazon escribe el comando /start.\n El bot te pedirá que introduzcas el enlace del' \
                f' producto que quieres rastrear.' \
-               f' Cuando introduces una URL válida puedes escoger entre 2 opciones: \n     <b>1.</b> Rastrear el stock de un producto que no está disponible.' \
-               f' Trackmazon te avisará cuando ese producto vuelva a tener stock.\n     <b>2.</b> Rastrear el precio de un producto. Trackmazon te avisará' \
-               f' cuando el precio de un producto con stock esté por debajo del precio que has indicado.\n\n' \
+               f' Cuando introduces una URL válida puedes escoger entre 2 opciones: \n     1️⃣ Rastrear el stock de un producto que no está disponible.' \
+               f' Trackmazon te avisará cuando ese producto vuelva a tener stock.\n     2️⃣ Rastrear el precio de un producto. Trackmazon te avisará' \
+               f' cuando haya bajado el precio de ese producto.\n\n' \
                f'<b>🔶 ¿Como veo los productos que estoy rastreando?</b> \n' \
                f'🔹 Con el comando /list se mostrarán todos los productos que estás rastreando en ese momento.\n\n' \
                f'<b>🔶 ¿Qué hago si quiero dejar de rastrear un producto?</b> \n' \
@@ -177,14 +173,6 @@ async def text_messages(message):
         await bot.send_message(message.chat.id, "No tengo respuesta para eso pero se me da bien rastrear productos 😉")
 
 
-# Funcion que gestiona la ejecucion de la funcion de rastreo pasadole un intervalo de tiempo
-async def schedule_checker(interval, func):
-    while True:
-        await asyncio.gather(
-            asyncio.sleep(interval),
-            func()
-        )
-
 
 # Rastrea los productos almacenados en la BD
 async def product_checker():
@@ -197,11 +185,11 @@ async def product_checker():
         estado = p[4]
 
         await bot.send_message(chat_id, f"Rastreando el producto {productos.index(p)}")
+        newStock = await amz.main(link, 'stock') # Realiza el scraping para stock
+
         try:
             # Si la opcion es stock rastrea el stock del producto
             if opcion == 'stock':
-                amz = AmzScraper()
-                newStock = await amz.main(link, 'stock') # Realiza el scraping para stock
 
                 if newStock[1] == 'En stock.':
                     await bot.send_message(chat_id, f'Hey! Tu producto vuelve a estar disponible! 🤑\n'
@@ -215,8 +203,6 @@ async def product_checker():
         try:
             # Si la opcion del producto es precio rastrea el precio
             if opcion == 'precio':
-                amz = AmzScraper()
-                newStock = await amz.main(link, 'stock')  # Primero comprueba que sigue teniendo stock
                 if newStock[1] == '' or newStock[1] == 'No disponible.':  # Si no tiene stock avisa al usuario
                     await bot.send_message(chat_id, f'Tu producto con rastreo de precio se ha quedado sin stock! 😢\n'
                                                     f'{link}')
@@ -233,6 +219,13 @@ async def product_checker():
         except Exception as e:
             print(e)
 
+# Funcion que gestiona la ejecucion de la funcion de rastreo pasadole un intervalo de tiempo
+async def schedule_checker(interval, func):
+    while True:
+        await asyncio.gather(
+            asyncio.sleep(interval),
+            func()
+        )
 
 # Crea 2 tareas. Una para ejecutar el bot en general y otra para rastrear periodicamente los productos
 async def main():
@@ -245,34 +238,6 @@ async def main():
 
 # --- MAIN ---
 if __name__ == "__main__":
-    # freeze_support()
-    # Enable saving next step handlers to file "./.handlers-saves/step.save".
-    # Delay=2 means that after any change in next step handlers (e.g. calling register_next_step_handler())
-    # saving will happen after delay 2 seconds.
-    # bot.enable_save_next_step_handlers(delay=2)
-
-    # Load next_step_handlers from save file (default "./.handlers-saves/step.save")
-    # WARNING It will work only if enable_save_next_step_handlers was called!
-    # bot.load_next_step_handlers()
-
-    # check.add_job(product_checker, 'interval', seconds=5)
-    # check.start()
-
-    # asyncio.run(bot.polling(non_stop=True, interval=3, timeout=30, request_timeout=300))
-    # t1 = Thread(target=asyncio.run(bot.polling(non_stop=True, interval=3, timeout=30, request_timeout=300)))
-    # t2 = Thread(target=asyncio.run(schedule.every(5).seconds.do(schedule_check)))
-    # t1.start()
-    # t2.start()
-    # t1.join()
-    # t2.join()
-
-    # executor = ProcessPoolExecutor(2)
-    # loop = asyncio.get_event_loop()
-    # bot_event = loop.run_in_executor(executor, main)
-    # checker_event = loop.run_in_executor(executor, schedule_check)
-    #
-    # loop.run_forever()
 
     asyncio.run(main())
 
-    # bot.infinity_polling()  # Permanece a la escucha de nuevos mensajes

@@ -1,24 +1,12 @@
-# For this class we need to install the following:
-# - pip install BeautifulSoup
-# - pip install requests
-
 from abc import ABC, abstractmethod  # Imports ABC module
-from bs4 import BeautifulSoup  # Imports scraping module
 from requests_html import *
 import asyncio
-from config import *
 
-
-# Una URL de amazon tiene la siguiente estructura (Sin parametros):
-# https://www.amazon.es/realme-Smartphone-Snapdragon-Batería-SuperDart/dp/B09S6BFSX9/
-# - https://www.amazon.es/ -> Dominio
-# - realme-Smartphone-Snapdragon-Batería-SuperDart/ -> Titulo reducido del producto (Podemos prescindir de esta parte)
-# - dp/B09S6BFSX9/ -> Identificador del producto
 
 
 # Declaramos una clase abstracta para declarar los metodos necesarios para obtener datos de Amazon
-# - getProductPrize(ID) -> Obtiene el precio de un producto a partir de su ID (Float)
-# - getProductStock(ID) -> Obtiene el stock de un producto a partir de su ID (Boolean)
+# - getProductPrize() -> Obtiene el precio de un producto
+# - getProductStock() -> Obtiene el stock de un producto
 
 # Declaramos la clase abstracta para un producto
 class Scraper(ABC):
@@ -35,30 +23,8 @@ class Scraper(ABC):
 # Implementamos la clase abstracta
 class AmzScraper(Scraper):
 
-    # def __init__(self, url):
-    #     # self.proxies = getWorkingProxies()  # Proxies para realizar las peticiones
-    #     # self.proxy = random.choice(tuple(self.proxies))  # Escogemos un proxy aleatorio de la lista
-    #     # self.proxy = '113.65.20.81:9797'
-    #     self.headers = {
-    #         'user-agent': useragent,
-    #         'accept': accept,
-    #         'accept-encoding': acceptenc,
-    #         'accept-language': acceptlang,
-    #         'cache-control': cachecon
-    #     }
-    #     # self.request = requests.get(url, self.headers, proxies={ "http": self.proxy, "https": self.proxy }, timeout=5)
-    #     self.request = requests.get(url, self.headers, timeout=5)
-
-    # def __init__(self, url):
-    #     # Crea una sesion HTML
-    #     self.session = AsyncHTMLSession()
-    #     self.response = self.session.get(url) # Se pasa la URL del producto a rastrear
-    #     self.response.html.render(sleep=1) # Espera a que renderice la pagina
-
-    # Rastrea un producto que NO TIENE STOCK
+    # Obtiene el titulo y el precio de un producto que NO TIENE STOCK
     async def getProductStock(self, s, url):
-        # soup = BeautifulSoup(self.response.text, 'html.parser')
-        # stock = soup.find('span', class_='a-size-medium a-color-success').text
 
         response = await s.get(url)  # Se pasa la URL del producto a rastrear
         await response.html.arender(sleep=1)  # Espera a que renderice la pagina
@@ -76,10 +42,9 @@ class AmzScraper(Scraper):
         await s.close()
         return title, stock
 
-    # Rastrea el PRECIO de un producto que tiene stock
+    # Obtiene el titulo y el precio de un producto que tiene stock
     async def getProductPrize(self, s, url):
-        # soup = BeautifulSoup(self.request.text, 'html.parser')
-        # prize = soup.select("span.a-offscreen")
+
         response = await s.get(url)  # Se pasa la URL del producto a rastrear
         await response.html.arender(sleep=1)  # Espera a que renderice la pagina
 
@@ -96,16 +61,6 @@ class AmzScraper(Scraper):
             prize = ''
         await s.close()
         return title, prize
-
-    # async def getProductTitle(self, s, url):
-    #     response = await s.get(url)  # Se pasa la URL del producto a rastrear
-    #     await response.html.arender(sleep=1)  # Espera a que renderice la pagina
-    #
-    #     try:
-    #         title = response.html.find('span#productTitle')[0].text
-    #     except:
-    #         title = ''
-    #     return title
 
     # Metodo main que gestiona las peticiones de forma asincrona mediante tareas. Dos parametros:
     # url: La url a la que se realiza la peticion

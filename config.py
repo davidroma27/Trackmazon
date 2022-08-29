@@ -1,4 +1,4 @@
-TLG_TOKEN = "5436264749:AAFzN_PF8_EoQEr3s0BAXAdvpqcR0JKQt1Q"
+TLG_TOKEN = "5436264749:AAENJ0oBiWj_8TZ5AxmCPykqU4pUZLGPOWg"
 AMZ_REGEXP = "^([https?://www\.]*amazon\.(com|es|co\.uk|de|fr|it|nl)).*?(\/[dg]p\/[^/]+).*"
 
 # Encabezados para el header de amz.py

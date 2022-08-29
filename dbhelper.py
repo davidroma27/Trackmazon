@@ -5,6 +5,7 @@ class DBHelper:
         self.dbname = dbname
         self.conn = sqlite3.connect(dbname)
 
+    # Funcion encargada de crear la tabla donde se almacenan los productos
     def setup(self):
         stmt = "CREATE TABLE IF NOT EXISTS trackings(chatid integer, url text, titulo text, opcion text, estado text)"
         prodids = "CREATE INDEX IF NOT EXISTS prodID ON trackings(url ASC)"
@@ -57,6 +58,6 @@ class DBHelper:
         self.conn.commit()
 
 
-# if __name__ == "__main__":
-#     db = DBHelper()
-#     db.setup()
+if __name__ == "__main__":
+    db = DBHelper()
+    db.setup()
