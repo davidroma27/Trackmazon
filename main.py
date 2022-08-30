@@ -4,7 +4,6 @@ import telebot  # Para importar la API de Telegram
 from telebot.async_telebot import AsyncTeleBot  # Importamos el bot asincrono
 from telebot import types
 import asyncio
-import aiohttp
 from telebot.types import InlineKeyboardMarkup  # Para crear menu de botones
 from telebot.types import InlineKeyboardButton  # Para definir botones inline
 from dbhelper import DBHelper
@@ -14,6 +13,7 @@ import re  # Para evaluar expresiones regulares
 bot = AsyncTeleBot(TLG_TOKEN)  # Le pasamos el token del bot a instanciar
 db = DBHelper()  # Instancia de la base de datos
 amz = AmzScraper()  # Instancia de la clase de scraping
+
 
 # respuesta al comando /start
 @bot.message_handler(commands=["start"])  # Se establece un decorador que responderá al comando /start
@@ -82,14 +82,9 @@ async def respuesta_botones(call):  # Gestiona las acciones del menu de botones
             await bot.send_message(chat_id, "Obteniendo precio...")
             stock = await amz.main(url, 'stock')  # Comprobamos que el producto esta disponible
 
-            # Si el stock devuelve vacío muestra que no esta disponible
-            if stock[1] == '':
-                await bot.send_message(chat_id, f'Estado actual: No disponible.')
-            else:  # Si no, muestra el estado del stock que muestra en la web
-                await bot.send_message(chat_id, f'Estado actual: {stock[1]}')
-
             # Si no hay stock no realiza rastreo de precio
             if stock[1] == '' or stock[1] == 'No disponible.':
+                await bot.send_message(chat_id, f'Estado actual: No disponible.')
                 await bot.reply_to(urlMsg,
                                    f'El producto no tiene stock, imposible rastrear precio. Prueba a rastrear el stock! 😉')
             else:
@@ -126,6 +121,7 @@ async def list_products(message):
 
     await bot.send_message(message.chat.id, msg, parse_mode="html", reply_markup=teclado)
 
+
 # Responde al menú para elminiar un procuto del rastreo
 @bot.callback_query_handler(func=lambda call: True)
 async def eliminar_producto(req):
@@ -133,7 +129,7 @@ async def eliminar_producto(req):
     titulo = lista[int(req.data)]
     producto = db.get_url(titulo).pop()[0]
     try:
-        db.del_tracking(producto, chat_id) # Se elimina el producto de la BD
+        db.del_tracking(producto, chat_id)  # Se elimina el producto de la BD
         await bot.send_message(chat_id, f"El producto ha sido eliminado ✅")
     except Exception as e:
         await bot.send_message(chat_id, str(e))
@@ -173,7 +169,6 @@ async def text_messages(message):
         await bot.send_message(message.chat.id, "No tengo respuesta para eso pero se me da bien rastrear productos 😉")
 
 
-
 # Rastrea los productos almacenados en la BD
 async def product_checker():
     productos = db.get_all()  # Array de productos
@@ -184,8 +179,8 @@ async def product_checker():
         opcion = p[3]
         estado = p[4]
 
-        await bot.send_message(chat_id, f"Rastreando el producto {productos.index(p)}")
-        newStock = await amz.main(link, 'stock') # Realiza el scraping para stock
+        await bot.send_message(chat_id, f"Rastreando producto {productos.index(p)}")
+        newStock = await amz.main(link, 'stock')  # Realiza el scraping para stock
 
         try:
             # Si la opcion es stock rastrea el stock del producto
@@ -197,10 +192,7 @@ async def product_checker():
                     db.update_estado(newStock[1], chat_id, link)  # Actualiza el estado en la BD
                 else:
                     pass
-        except Exception as e:
-            print(e)
 
-        try:
             # Si la opcion del producto es precio rastrea el precio
             if opcion == 'precio':
                 if newStock[1] == '' or newStock[1] == 'No disponible.':  # Si no tiene stock avisa al usuario
@@ -219,6 +211,7 @@ async def product_checker():
         except Exception as e:
             print(e)
 
+
 # Funcion que gestiona la ejecucion de la funcion de rastreo pasadole un intervalo de tiempo
 async def schedule_checker(interval, func):
     while True:
@@ -226,6 +219,7 @@ async def schedule_checker(interval, func):
             asyncio.sleep(interval),
             func()
         )
+
 
 # Crea 2 tareas. Una para ejecutar el bot en general y otra para rastrear periodicamente los productos
 async def main():
@@ -238,6 +232,21 @@ async def main():
 
 # --- MAIN ---
 if __name__ == "__main__":
+    # async def wakeup():
+    #     while True:
+    #         await asyncio.sleep(1)
+    #
+    # loop = asyncio.get_event_loop()
+    # task = loop.create_task(main())
+    # task = asyncio.get_event_loop().run_until_complete(main())
+    loop = asyncio.get_event_loop()
 
-    asyncio.run(main())
+    try:
+        loop = asyncio.get_event_loop().run_until_complete(main())
+    except KeyboardInterrupt as e:
+        print("Caught KeyboardInterrupt. Canceling tasks...")
+        loop.run_forever()
+    finally:
+        loop.close()
 
+    # asyncio.get_event_loop().run_until_complete(main())

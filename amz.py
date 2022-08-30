@@ -2,9 +2,7 @@ from abc import ABC, abstractmethod  # Imports ABC module
 from requests_html import *
 import asyncio
 
-
-
-# Declaramos una clase abstracta para declarar los metodos necesarios para obtener datos de Amazon
+#  Declaramos una clase abstracta para declarar los metodos necesarios para obtener datos de Amazon
 # - getProductPrize() -> Obtiene el precio de un producto
 # - getProductStock() -> Obtiene el stock de un producto
 
@@ -25,40 +23,36 @@ class AmzScraper(Scraper):
 
     # Obtiene el titulo y el precio de un producto que NO TIENE STOCK
     async def getProductStock(self, s, url):
-
-        response = await s.get(url)  # Se pasa la URL del producto a rastrear
-        await response.html.arender(sleep=1)  # Espera a que renderice la pagina
+        title = None
+        stock = None
 
         try:
-            title = response.html.find('span#productTitle')[0].text
-            stock = response.html.find('span.a-size-medium, a-color-success', first=True).text
-            if stock == '':
-                stock = response.html.find('span.a-size-medium, a-color-state', first=True).text
-            else:
-                pass
-        except:
-            stock = ''  # Devuelve vacío cuando el producto no muestra información de stock
-            title = ''
+            response = await s.get(url)  # Se pasa la URL del producto a rastrear
+            await response.html.arender(wait=2)  # Espera a que renderice la pagina
+
+            title = response.html.xpath('//*[@id="productTitle"]', first=True).text  # Obtiene el titulo
+            stock = response.html.xpath('//*[@id="availability"]/span', first=True).text  # Obtiene el stock
+        except Exception as e:
+            print(e)
+
         await s.close()
         return title, stock
 
     # Obtiene el titulo y el precio de un producto que tiene stock
     async def getProductPrize(self, s, url):
-
-        response = await s.get(url)  # Se pasa la URL del producto a rastrear
-        await response.html.arender(sleep=1)  # Espera a que renderice la pagina
+        title = None
+        prize = None
 
         try:
-            title = response.html.find('span#productTitle')[0].text
-            prize = response.html.find('span.a-offscreen')[0].text
-            # if prize == '':
-            #     prize = response.html.find('span.a-size-medium, a-color-price, header-price, a-text-normal')[0].text
-            # else:
-            #     pass
+            response = await s.get(url)  # Se pasa la URL del producto a rastrear
+            await response.html.arender(wait=2)  # Espera a que renderice la pagina
+
+            title = response.html.xpath('//*[@id="productTitle"]', first=True).text  # Obtiene el titulo
+            prize = response.html.find('span.a-offscreen', first=True).text  # Obtiene el precio del producto
+
         except Exception as e:
             print(e)
-            title = ''
-            prize = ''
+
         await s.close()
         return title, prize
 
@@ -74,9 +68,3 @@ class AmzScraper(Scraper):
             task = self.getProductPrize(s, url)
         await s.close()
         return await task
-
-# if __name__ == "__main__":
-#     amz = AmzScraper()
-#     s = AsyncHTMLSession()
-#     precio = await amz.getProductPrize(s, 'https://www.amazon.es/GoPro-Kit-HERO8-Black-repuesto/dp/B08981WMRP/ref=sr_1_146?__mk_es_ES=%C3%85M%C3%85%C5%BD%C3%95%C3%91&keywords=GoPro&qid=1661428211&s=electronics&sr=1-146&th=1')
-#     print(precio)
