@@ -8,6 +8,9 @@ from telebot.types import InlineKeyboardMarkup  # Para crear menu de botones
 from telebot.types import InlineKeyboardButton  # Para definir botones inline
 from dbhelper import DBHelper
 import re  # Para evaluar expresiones regulares
+import nest_asyncio
+
+nest_asyncio.apply()
 
 # instacia del bot
 bot = AsyncTeleBot(TLG_TOKEN)  # Le pasamos el token del bot a instanciar
@@ -179,7 +182,7 @@ async def product_checker():
         opcion = p[3]
         estado = p[4]
 
-        await bot.send_message(chat_id, f"Rastreando producto {productos.index(p)}")
+        # await bot.send_message(chat_id, f"Rastreando producto {productos.index(p)}")
         newStock = await amz.main(link, 'stock')  # Realiza el scraping para stock
 
         try:
@@ -232,13 +235,6 @@ async def main():
 
 # --- MAIN ---
 if __name__ == "__main__":
-    # async def wakeup():
-    #     while True:
-    #         await asyncio.sleep(1)
-    #
-    # loop = asyncio.get_event_loop()
-    # task = loop.create_task(main())
-    # task = asyncio.get_event_loop().run_until_complete(main())
     loop = asyncio.get_event_loop()
 
     try:
@@ -248,5 +244,3 @@ if __name__ == "__main__":
         loop.run_forever()
     finally:
         loop.close()
-
-    # asyncio.get_event_loop().run_until_complete(main())

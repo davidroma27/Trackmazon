@@ -32,6 +32,7 @@ class AmzScraper(Scraper):
 
             title = response.html.xpath('//*[@id="productTitle"]', first=True).text  # Obtiene el titulo
             stock = response.html.xpath('//*[@id="availability"]/span', first=True).text  # Obtiene el stock
+
         except Exception as e:
             print(e)
 
